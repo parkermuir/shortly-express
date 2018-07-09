@@ -1,6 +1,6 @@
-var db = require('../config');
-var bcrypt = require('bcrypt-nodejs');
-var Promise = require('bluebird');
+var db = require("../config");
+var bcrypt = require("bcrypt-nodejs");
+var Promise = require("bluebird");
 
 //Synchronous
 
@@ -22,8 +22,25 @@ var Promise = require('bluebird');
 //     // res = false
 // });
 
-
 var User = db.Model.extend({
+  tableName: "users",
+  hasTimestamps: true,
+  initialize: function() {
+    this.on('creating', function(model, attrs, options) {
+      let pwd = model.attributes.password;
+      let obj = model.attributes;
+      bcrypt.hash(pwd, null, null, function(err, hash) {
+        if (err) throw err
+        else {
+        obj.hash = hash;
+        model.set(obj);
+        }
+      });
+    });
+  },
+  // auth: function(userObj){
+  //   model.get()
+  // }
 });
 
 module.exports = User;

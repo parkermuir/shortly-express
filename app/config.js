@@ -44,7 +44,8 @@ db.knex.schema.hasTable('users').then(function(exists) {
     db.knex.schema.createTable('users', function (users) {
       users.increments('id').primary();
       users.string('name');
-      users.string('hash', 60)
+      users.string('hash', 60);
+      users.timestamps();
     }).then(function (table) {
       console.log('Created Table', table);
     });
