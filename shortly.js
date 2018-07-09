@@ -2,6 +2,7 @@ var express = require("express");
 var util = require("./lib/utility");
 var partials = require("express-partials");
 var bodyParser = require("body-parser");
+var session = require('express-session')
 
 var db = require("./app/config");
 var Users = require("./app/collections/users");
@@ -22,6 +23,15 @@ var hashPwd = function(pwd, cb){
   });
 }
 
+var restrict = function (req, res, next) {
+  if (req.session.user){
+    next()
+  } else {
+    req.session.error = 'Access Denied!!!!!!!';
+    res.redirect('/signup')
+  }
+}
+
 app.set("views", __dirname + "/views");
 app.set("view engine", "ejs");
 app.use(partials());
@@ -30,16 +40,17 @@ app.use(bodyParser.json());
 // Parse forms (signup/login)
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + "/public"));
+app.use(session({secret: 'this-is-a-secret-token', cookie: {maxAge: 60000} })) // NEW
 
-app.get("/", function(req, res) {
+app.get("/", restrict, function(req, res) {
   res.render("index");
 });
 
-app.get("/create", function(req, res) {
+app.get("/create", restrict, function(req, res) {
   res.render("index");
 });
 
-app.get("/links", function(req, res) {
+app.get("/links", restrict, function(req, res) {
   Links.reset()
     .fetch()
     .then(function(links) {
@@ -47,9 +58,9 @@ app.get("/links", function(req, res) {
     });
 });
 
-app.post("/links", function(req, res) {
+app.post("/links", restrict, function(req, res) {
   var uri = req.body.url;
-
+  console.log('URI IS ', uri)
   if (!util.isValidUrl(uri)) {
     console.log("Not a valid url: ", uri);
     return res.sendStatus(404);
@@ -85,15 +96,28 @@ app.get("/login", function(req, res) {
   res.render("login");
 });
 
-app.post("/login", hashPwd, function(req, res) {
+app.post("/login", function(req, res) {
   if (!req.body) return res.sendStatus(400);
-  // res.send('welcome, ' + req.body.username)
   let name = req.body.username;
   let password = req.body.password;
-  new User({ name: name, hash: password }).fetch().then(
+  new User({ name: name }).fetch().then(
     function(found) {
     if (found) {
-      res.status(200).send("Logged in!");
+      let dbUser = found.attributes.name;
+      let dbHash = found.attributes.hash;
+      bcrypt.compare(password, dbHash, (err, rs) => {
+        if (err) throw 'aaaaa'
+        if (rs === true) {
+          req.session.regenerate( () => {
+            req.session.user = name;
+            console.error('REQUEST SESSION IS: ', req.session);
+            res.redirect("/");
+          })
+        } else if (rs === false) {
+          console.error("AAAAA")
+          res.redirect('/login')
+        }
+      })
     } else {
       res.status(404).send('USER NOT FOUND')
     }
@@ -107,21 +131,21 @@ app.get("/signup", function(req, res) {
 app.post("/signup", function(req, res) {
   if (!req.body) return res.sendStatus(400);
   let name = req.body.username;
-  let password = req.body.password;
-  new User({ name: name, hash: password }).fetch().then(function(found) {
+  let password = req.body.password; 
+  let pwd = hashPwd(req.body.password, (hashedPassword) => {
+    new User({ name: name, hash: hashedPassword }).fetch().then(function(found) {
     if (found) {
       res.status(200).send("Logged in!");
     } else {
       Users.create({
         name: name,
-        hash: password
+        hash: hashedPassword
       }).then(function(newUser) {
         res.status(200).send(`User ${newUser.attributes.name} created!`);
       });
     }
   });
-  // let pwd = hashPwd(req.body.password, (password) => {
-  // });
+  });
 });
 
 /************************************************************/
@@ -130,7 +154,7 @@ app.post("/signup", function(req, res) {
 // If the short-code doesn't exist, send the user to '/'
 /************************************************************/
 
-app.get("/*", function(req, res) {
+app.get("/*", restrict, function(req, res) {
   new Link({ code: req.params[0] }).fetch().then(function(link) {
     if (!link) {
       res.redirect("/");

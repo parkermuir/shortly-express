@@ -15,9 +15,7 @@ var Promise = require("bluebird");
 // });
 
 // // Load hash from your password DB.
-// bcrypt.compare("bacon", hash, function(err, res) {
-//     // res == true
-// });
+
 // bcrypt.compare("veggies", hash, function(err, res) {
 //     // res = false
 // });
@@ -25,19 +23,19 @@ var Promise = require("bluebird");
 var User = db.Model.extend({
   tableName: "users",
   hasTimestamps: true,
-  initialize: function() {
-    this.on('creating', function(model, attrs, options) {
-      let pwd = model.attributes.password;
-      let obj = model.attributes;
-      bcrypt.hash(pwd, null, null, function(err, hash) {
-        if (err) throw err
-        else {
-        obj.hash = hash;
-        model.set(obj);
-        }
-      });
-    });
-  },
+  // initialize: function() {
+  //   this.on('creating', function(model, attrs, options) {
+  //     let pwd = model.attributes.password;
+  //     let obj = model.attributes;
+  //     bcrypt.hash(pwd, null, null, function(err, hash) {
+  //       if (err) throw err
+  //       else {
+  //       obj.hash = hash;
+  //       model.set(obj);
+  //       }
+  //     });
+  //   });
+  // },
   // auth: function(userObj){
   //   model.get()
   // }
